@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Writing Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <h1>Writing Assistant</h1>
+    <div class="stats-live">
+      <span id="word-count">0 words</span>
+      <span class="dot">·</span>
+      <span id="char-count">0 characters</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="editor-pane">
+    <div class="editor-wrap">
+      <div id="highlight-layer" class="highlight-layer"></div>
+      <textarea id="editor" placeholder="Start writing..." spellcheck="false"></textarea>
+    </div>
+      <div class="editor-controls">
+        <button id="analyze-btn">Analyze</button>
+        <button id="reset-btn" class="ghost">Reset</button>
+        <label class="toggle">
+          <input type="checkbox" id="formality-toggle" checked>
+          <span>Check formality</span>
+        </label>
+      </div>
+    </section>
+
+    <aside class="sidebar" id="sidebar">
+      <div class="doc-summary" id="doc-summary">
+        <div class="summary-row">
+          <span class="label">Readability</span>
+          <span class="value" id="readability-value">—</span>
+        </div>
+        <div class="summary-row" id="formality-row">
+          <span class="label">Overall tone</span>
+          <span class="value" id="formality-value">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="label">Sentences</span>
+          <span class="value" id="sentence-stats">—</span>
+        </div>
+      </div>
+
+      <div class="cards" id="cards"></div>
+    </aside>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
