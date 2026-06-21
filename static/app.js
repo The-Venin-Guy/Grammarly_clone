@@ -88,7 +88,9 @@ editor.addEventListener('click', () => {
 
   if (!cleaned || !spellErrors.has(cleaned)) return;
 
-  const suggestion = spellErrors.get(cleaned);
+  const rawSuggestion = spellErrors.get(cleaned);
+  if (!rawSuggestion) return;
+  const suggestion = matchCase(word, rawSuggestion);
   if (!suggestion) return;
 
   editor.value = text.slice(0, start) + suggestion + text.slice(end);
@@ -269,3 +271,10 @@ editor.addEventListener('input', () => {
     if (fullText) runAutoAnalysis(fullText);
   }, 5000);
 });
+
+function matchCase(original, suggestion) {
+  if (original[0] && original[0] === original[0].toUpperCase() && original[0] !== original[0].toLowerCase()) {
+    return suggestion.charAt(0).toUpperCase() + suggestion.slice(1);
+  }
+  return suggestion;
+}

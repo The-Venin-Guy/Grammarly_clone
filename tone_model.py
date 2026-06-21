@@ -20,6 +20,7 @@ async def rewrite_formality(text):
         "Rewrite the following sentence in formal English. "
         "Preserve the exact meaning and all factual details — do not change who did what. "
         "Make the smallest change necessary to sound formal. "
+        "If the senqtence is already formal or neutral or not overly informal, return it unchanged. "
         "Return only the rewritten sentence with no explanation:\n\n"
         f"{text}"
     )
@@ -44,7 +45,9 @@ async def rewrite_clarity(text):
         "Simplify the following sentence to make it clearer and easier to read. "
         "Preserve the original meaning and all factual details exactly. "
         "Make the smallest change necessary for clarity. "
-        "Return only the simplified sentence with no explanation:\n\n"
+        "Return only the simplified sentence with no explanation:"
+        "Do not rewrite with more synonyms if the original words are already clear and simple."
+        "if the sentence is already clear, return it unchanged.\n\n"
         f"{text}"
     )
     return (await ollama_generate(prompt)).strip()
