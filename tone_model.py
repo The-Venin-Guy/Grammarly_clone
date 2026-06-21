@@ -21,7 +21,7 @@ async def rewrite_formality(text):
         "Preserve the exact meaning and all factual details — do not change who did what. "
         "Make the smallest change necessary to sound formal. "
         "If the senqtence is already formal or neutral or not overly informal, return it unchanged. "
-        "Return only the rewritten sentence with no explanation:\n\n"
+        "Return only the rewritten sentence. There must be absolutely no explanation:\n\n"
         f"{text}"
     )
     return (await ollama_generate(prompt)).strip()

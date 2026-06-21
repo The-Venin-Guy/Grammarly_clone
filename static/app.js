@@ -12,6 +12,22 @@ const highlightLayer = document.getElementById('highlight-layer');
 
 let lastAnalysisData = null;
 const spellErrors = new Map();
+let lastCompletedSentences = [];
+let debounceTimer = null;
+let staleTimer = null;
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function matchCase(original, suggestion) {
+  if (original[0] && original[0] === original[0].toUpperCase() && original[0] !== original[0].toLowerCase()) {
+    return suggestion.charAt(0).toUpperCase() + suggestion.slice(1);
+  }
+  return suggestion;
+}
 
 function updateLiveStats() {
   const text = editor.value;
@@ -91,15 +107,11 @@ editor.addEventListener('click', () => {
   const rawSuggestion = spellErrors.get(cleaned);
   if (!rawSuggestion) return;
   const suggestion = matchCase(word, rawSuggestion);
-  if (!suggestion) return;
 
-  editor.value = text.slice(0, start) + suggestion + text.slice(end);
+  editor.setSelectionRange(start, end);
+  document.execCommand('insertText', false, suggestion);
+
   spellErrors.delete(cleaned);
-  renderHighlights();
-  updateLiveStats();
-
-  const newPos = start + suggestion.length;
-  editor.setSelectionRange(newPos, newPos);
 });
 
 async function analyzeText() {
@@ -173,6 +185,7 @@ function buildCard(sentence) {
   return card;
 }
 
+// ---------- Sidebar rewrite: click-to-accept (undo-safe via execCommand) ----------
 cardsEl.addEventListener('click', (e) => {
   const target = e.target.closest('.rewrite.acceptable');
   if (!target) return;
@@ -189,8 +202,9 @@ cardsEl.addEventListener('click', (e) => {
   const index = text.indexOf(sentenceData.original_text);
   if (index === -1) return; // original sentence already replaced/edited away
 
-  editor.value = text.slice(0, index) + replacementText + text.slice(index + sentenceData.original_text.length);
-  updateLiveStats();
+  editor.focus();
+  editor.setSelectionRange(index, index + sentenceData.original_text.length);
+  document.execCommand('insertText', false, replacementText);
 
   const card = target.closest('.card');
   card.querySelectorAll('.rewrite.acceptable').forEach(el => {
@@ -200,12 +214,6 @@ cardsEl.addEventListener('click', (e) => {
   target.classList.remove('stale');
   target.classList.add('applied');
 });
-
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
 
 analyzeBtn.addEventListener('click', analyzeText);
 
@@ -220,10 +228,6 @@ resetBtn.addEventListener('click', async () => {
 formalityToggle.addEventListener('change', () => {
   if (lastAnalysisData) renderResults(lastAnalysisData);
 });
-
-let lastCompletedSentences = [];
-let debounceTimer = null;
-let staleTimer = null;
 
 function getCompletedSentences(text) {
   const matches = text.match(/[^.!?]+[.!?]+/g);
@@ -271,10 +275,3 @@ editor.addEventListener('input', () => {
     if (fullText) runAutoAnalysis(fullText);
   }, 5000);
 });
-
-function matchCase(original, suggestion) {
-  if (original[0] && original[0] === original[0].toUpperCase() && original[0] !== original[0].toLowerCase()) {
-    return suggestion.charAt(0).toUpperCase() + suggestion.slice(1);
-  }
-  return suggestion;
-}
