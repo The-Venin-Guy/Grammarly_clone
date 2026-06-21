@@ -5,3 +5,6 @@ class AnalyzeRequest(BaseModel):
 
 class SpellCheckRequest(BaseModel):
     word: str
+
+class GrammarCheckRequest(BaseModel):
+    text: str

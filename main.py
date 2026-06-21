@@ -6,6 +6,7 @@ from routes.analyze import router as analyze_router
 from routes.reset import router as reset_router
 from grammar_model import BASE_URL
 from routes.spellcheck import router as spellcheck_router
+from routes.grammar_check import router as grammar_check_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -22,5 +23,6 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(analyze_router)
 app.include_router(reset_router)
 app.include_router(spellcheck_router)
+app.include_router(grammar_check_router)
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

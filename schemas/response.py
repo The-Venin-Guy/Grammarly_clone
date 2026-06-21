@@ -42,3 +42,6 @@ class AnalyzeResponse(BaseModel):
 class SpellCheckResponse(BaseModel):
     is_correct: bool
     suggestion: str | None
+
+class GrammarCheckResponse(BaseModel):
+    errors: list[ErrorDetail]

@@ -1,3 +1,4 @@
+// ---------- DOM references ----------
 const editor = document.getElementById('editor');
 const wordCountEl = document.getElementById('word-count');
 const charCountEl = document.getElementById('char-count');
@@ -10,12 +11,17 @@ const sentenceStatsEl = document.getElementById('sentence-stats');
 const formalityToggle = document.getElementById('formality-toggle');
 const highlightLayer = document.getElementById('highlight-layer');
 
+// ---------- State ----------
 let lastAnalysisData = null;
 const spellErrors = new Map();
+const grammarErrorsBySentence = new Map(); // sentenceText -> errors array
+const dismissedSuggestions = new Set();    // entries like "hash:type"
 let lastCompletedSentences = [];
 let debounceTimer = null;
 let staleTimer = null;
+let grammarCheckTimer = null;
 
+// ---------- Helpers ----------
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
@@ -29,6 +35,13 @@ function matchCase(original, suggestion) {
   return suggestion;
 }
 
+function setsEqual(a, b) {
+  if (a.size !== b.size) return false;
+  for (const v of a) if (!b.has(v)) return false;
+  return true;
+}
+
+// ---------- Live word/character count ----------
 function updateLiveStats() {
   const text = editor.value;
   const charCount = text.length;
@@ -40,6 +53,7 @@ function updateLiveStats() {
 editor.addEventListener('input', updateLiveStats);
 updateLiveStats();
 
+// ---------- Spellcheck: detection ----------
 async function checkWord(word) {
   const cleaned = word.replace(/[^a-zA-Z']/g, '');
   if (!cleaned) return;
@@ -60,21 +74,6 @@ async function checkWord(word) {
   renderHighlights();
 }
 
-function renderHighlights() {
-  const text = editor.value;
-  const tokens = text.split(/(\s+)/);
-
-  const html = tokens.map(token => {
-    const cleaned = token.replace(/[^a-zA-Z']/g, '').toLowerCase();
-    if (cleaned && spellErrors.has(cleaned)) {
-      return `<span class="misspelled" data-word="${escapeHtml(cleaned)}">${escapeHtml(token)}</span>`;
-    }
-    return escapeHtml(token);
-  }).join('');
-
-  highlightLayer.innerHTML = html;
-}
-
 editor.addEventListener('keyup', (e) => {
   if (e.key === ' ') {
     const cursorPos = editor.selectionStart;
@@ -85,11 +84,92 @@ editor.addEventListener('keyup', (e) => {
   }
 });
 
+// ---------- Grammar-only fast check (LanguageTool, no Ollama) ----------
+async function checkGrammarForSentence(sentence) {
+  const response = await fetch('/grammar-check', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: sentence })
+  });
+  if (!response.ok) return;
+
+  const data = await response.json();
+  if (data.errors && data.errors.length > 0) {
+    grammarErrorsBySentence.set(sentence, data.errors);
+  } else {
+    grammarErrorsBySentence.delete(sentence);
+  }
+  renderHighlights();
+}
+
+// ---------- Combined highlight rendering (spelling + grammar) ----------
+function buildMarks(text) {
+  const marks = [];
+
+  // Spelling marks
+  let pos = 0;
+  text.split(/(\s+)/).forEach(token => {
+    const cleaned = token.replace(/[^a-zA-Z']/g, '').toLowerCase();
+    if (cleaned && spellErrors.has(cleaned)) {
+      marks.push({ start: pos, end: pos + token.length, type: 'spelling' });
+    }
+    pos += token.length;
+  });
+
+  // Grammar marks, mapped from sentence-relative offsets to full-text offsets
+  let searchFrom = 0;
+  for (const [sentence, errors] of grammarErrorsBySentence.entries()) {
+    const sentencePos = text.indexOf(sentence, searchFrom);
+    if (sentencePos === -1) continue;
+    errors.forEach(err => {
+      marks.push({
+        start: sentencePos + err.offset,
+        end: sentencePos + err.offset + err.length,
+        type: 'grammar'
+      });
+    });
+    searchFrom = sentencePos + sentence.length;
+  }
+
+  return marks;
+}
+
+function renderHighlights() {
+  const text = editor.value;
+  const marks = buildMarks(text);
+
+  const charTypes = Array.from({ length: text.length }, () => new Set());
+  marks.forEach(m => {
+    for (let i = m.start; i < m.end && i < text.length; i++) {
+      charTypes[i].add(m.type);
+    }
+  });
+
+  let html = '';
+  let i = 0;
+  while (i < text.length) {
+    const types = charTypes[i];
+    let j = i;
+    while (j < text.length && setsEqual(charTypes[j], types)) j++;
+    const chunk = text.slice(i, j);
+    if (types.size === 0) {
+      html += escapeHtml(chunk);
+    } else {
+      const classes = Array.from(types).map(t => `mark-${t}`).join(' ');
+      html += `<span class="${classes}">${escapeHtml(chunk)}</span>`;
+    }
+    i = j;
+  }
+
+  highlightLayer.innerHTML = html;
+}
+
 editor.addEventListener('input', renderHighlights);
 editor.addEventListener('scroll', () => {
   highlightLayer.scrollTop = editor.scrollTop;
 });
 
+// ---------- Spellcheck: click-to-accept (undo-safe via execCommand) ----------
 editor.addEventListener('click', () => {
   const cursorPos = editor.selectionStart;
   const text = editor.value;
@@ -114,6 +194,7 @@ editor.addEventListener('click', () => {
   spellErrors.delete(cleaned);
 });
 
+// ---------- Analyze + render sidebar ----------
 async function analyzeText() {
   const text = editor.value.trim();
   if (!text) return;
@@ -155,38 +236,50 @@ function buildCard(sentence) {
   const card = document.createElement('div');
   card.className = 'card';
 
-  if (sentence.has_error) card.classList.add('has-grammar');
-  if (formalityToggle.checked && sentence.tone_rewrite) card.classList.add('has-formality');
-  if (sentence.passive_voice) card.classList.add('has-passive');
+  const isDismissed = (type) => dismissedSuggestions.has(`${sentence.hash}:${type}`);
+
+  if (sentence.has_error && !isDismissed('corrected_text')) card.classList.add('has-grammar');
+  if (formalityToggle.checked && sentence.tone_rewrite && !isDismissed('tone_rewrite')) card.classList.add('has-formality');
+  if (sentence.passive_voice && !isDismissed('passive_rewrite')) card.classList.add('has-passive');
 
   let html = `<div class="original">${escapeHtml(sentence.original_text)}</div>`;
 
+  function suggestionRow(tag, type, text) {
+    if (isDismissed(type)) return '';
+    return `<div class="suggestion-row">
+              <span class="tag ${tag}">${tag.charAt(0).toUpperCase() + tag.slice(1)}</span>
+              <button class="dismiss-btn" data-hash="${sentence.hash}" data-type="${type}" title="Ignore this suggestion">×</button>
+            </div>
+            <div class="rewrite acceptable" data-sentence-id="${sentence.id}" data-type="${type}">${escapeHtml(text)}</div>`;
+  }
+
   if (sentence.has_error && sentence.corrected_text) {
-    html += `<span class="tag grammar">Grammar</span>
-              <div class="rewrite acceptable" data-sentence-id="${sentence.id}" data-type="corrected_text">${escapeHtml(sentence.corrected_text)}</div>`;
+    html += suggestionRow('grammar', 'corrected_text', sentence.corrected_text);
   }
-
   if (formalityToggle.checked && sentence.tone_rewrite) {
-    html += `<span class="tag formality">Formality</span>
-              <div class="rewrite acceptable" data-sentence-id="${sentence.id}" data-type="tone_rewrite">${escapeHtml(sentence.tone_rewrite)}</div>`;
+    html += suggestionRow('formality', 'tone_rewrite', sentence.tone_rewrite);
   }
-
   if (sentence.passive_voice && sentence.passive_rewrite) {
-    html += `<span class="tag passive">Passive</span>
-              <div class="rewrite acceptable" data-sentence-id="${sentence.id}" data-type="passive_rewrite">${escapeHtml(sentence.passive_rewrite)}</div>`;
+    html += suggestionRow('passive', 'passive_rewrite', sentence.passive_rewrite);
   }
-
   if (sentence.clarity_rewrite) {
-    html += `<span class="tag clarity">Clarity</span>
-              <div class="rewrite acceptable" data-sentence-id="${sentence.id}" data-type="clarity_rewrite">${escapeHtml(sentence.clarity_rewrite)}</div>`;
+    html += suggestionRow('clarity', 'clarity_rewrite', sentence.clarity_rewrite);
   }
 
   card.innerHTML = html;
   return card;
 }
 
-// ---------- Sidebar rewrite: click-to-accept (undo-safe via execCommand) ----------
+// ---------- Sidebar: dismiss + click-to-accept (undo-safe via execCommand) ----------
 cardsEl.addEventListener('click', (e) => {
+  const dismissBtn = e.target.closest('.dismiss-btn');
+  if (dismissBtn) {
+    const key = `${dismissBtn.dataset.hash}:${dismissBtn.dataset.type}`;
+    dismissedSuggestions.add(key);
+    renderResults(lastAnalysisData);
+    return;
+  }
+
   const target = e.target.closest('.rewrite.acceptable');
   if (!target) return;
 
@@ -215,6 +308,7 @@ cardsEl.addEventListener('click', (e) => {
   target.classList.add('applied');
 });
 
+// ---------- Buttons ----------
 analyzeBtn.addEventListener('click', analyzeText);
 
 resetBtn.addEventListener('click', async () => {
@@ -223,12 +317,16 @@ resetBtn.addEventListener('click', async () => {
   readabilityEl.textContent = '—';
   formalityEl.textContent = '—';
   sentenceStatsEl.textContent = '—';
+  dismissedSuggestions.clear();
+  grammarErrorsBySentence.clear();
+  renderHighlights();
 });
 
 formalityToggle.addEventListener('change', () => {
   if (lastAnalysisData) renderResults(lastAnalysisData);
 });
 
+// ---------- Sentence-boundary debounce + stale-fallback auto-analysis ----------
 function getCompletedSentences(text) {
   const matches = text.match(/[^.!?]+[.!?]+/g);
   return matches ? matches.map(s => s.trim()) : [];
@@ -259,9 +357,21 @@ async function runAutoAnalysis(textOverride) {
 editor.addEventListener('input', () => {
   clearTimeout(debounceTimer);
   clearTimeout(staleTimer);
+  clearTimeout(grammarCheckTimer);
 
   const completed = getCompletedSentences(editor.value);
 
+  // Fast inline grammar highlighting (LanguageTool only, no Ollama)
+  grammarCheckTimer = setTimeout(() => {
+    completed.forEach(sentence => {
+      if (!grammarErrorsBySentence.has(sentence)) checkGrammarForSentence(sentence);
+    });
+    for (const key of grammarErrorsBySentence.keys()) {
+      if (!completed.includes(key)) grammarErrorsBySentence.delete(key);
+    }
+  }, 400);
+
+  // Full LLM-based analysis, only on newly-completed sentences
   if (sentencesChanged(completed, lastCompletedSentences)) {
     debounceTimer = setTimeout(() => {
       lastCompletedSentences = completed;
@@ -270,6 +380,7 @@ editor.addEventListener('input', () => {
     }, 1800);
   }
 
+  // Safety net for unfinished/unpunctuated text
   staleTimer = setTimeout(() => {
     const fullText = editor.value.trim();
     if (fullText) runAutoAnalysis(fullText);

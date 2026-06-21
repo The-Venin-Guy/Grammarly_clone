@@ -37,14 +37,25 @@ async def correct(sentence: str) -> str:
         f"{sentence}"
     )
     corrected_text = await ollama_generate(prompt)
-    corrected_text = strip_explanation(corrected_text)
+    corrected_text = clean_llm_output(sentence, corrected_text)
     return corrected_text.strip()
 
-def strip_explanation(text: str) -> str:
+def clean_llm_output(original: str, candidate: str) -> str:
     """
-    Removes trailing parenthetical commentary the LLM sometimes adds
-    despite being told not to (e.g. "(The original was already correct.)").
-    Safety net — prompt instructions alone aren't fully reliable.
+    Defends against LLM responses that include commentary or disclaimers
+    despite instructions not to. If the response looks unreliable,
+    falls back to the original sentence unchanged rather than trusting it.
     """
-    text = re.sub(r'\s*\([^)]*\)\s*$', '', text)
-    return text.strip()
+    candidate = candidate.strip()
+
+    if '\n\n' in candidate:
+        candidate = candidate.split('\n\n')[0].strip()
+
+    candidate = re.sub(r'\s*\([^)]*\)\s*$', '', candidate).strip()
+
+    if candidate.count('(') != candidate.count(')'):
+        return original.strip()
+    if len(candidate) > len(original.strip()) * 1.8 + 20:
+        return original.strip()
+
+    return candidate

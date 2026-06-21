@@ -205,10 +205,23 @@ button.ghost {
   font-style: italic;
 }
 
-.misspelled {
+.mark-spelling {
   text-decoration: underline wavy var(--clay);
   text-decoration-thickness: 1.5px;
   text-underline-offset: 2px;
+}
+
+.mark-grammar {
+  border-bottom: 2px solid var(--clay);
+  padding-bottom: 1px;
+}
+
+.mark-spelling.mark-grammar {
+  text-decoration: underline wavy var(--clay);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px;
+  border-bottom: 2px solid var(--clay);
+  padding-bottom: 1px;
 }
 
 .card .rewrite.acceptable {
@@ -234,4 +247,26 @@ button.ghost {
   opacity: 0.4;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+.suggestion-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.dismiss-btn {
+  background: transparent;
+  border: none;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+  margin-left: auto;
+}
+
+.dismiss-btn:hover {
+  color: var(--clay);
 }
