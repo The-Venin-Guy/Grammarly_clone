@@ -149,22 +149,55 @@ function buildCard(sentence) {
 
   if (sentence.has_error && sentence.corrected_text) {
     html += `<span class="tag grammar">Grammar</span>
-              <div class="rewrite">${escapeHtml(sentence.corrected_text)}</div>`;
+              <div class="rewrite acceptable" data-sentence-id="${sentence.id}" data-type="corrected_text">${escapeHtml(sentence.corrected_text)}</div>`;
   }
 
   if (formalityToggle.checked && sentence.tone_rewrite) {
     html += `<span class="tag formality">Formality</span>
-              <div class="rewrite">${escapeHtml(sentence.tone_rewrite)}</div>`;
+              <div class="rewrite acceptable" data-sentence-id="${sentence.id}" data-type="tone_rewrite">${escapeHtml(sentence.tone_rewrite)}</div>`;
   }
 
   if (sentence.passive_voice && sentence.passive_rewrite) {
     html += `<span class="tag passive">Passive</span>
-              <div class="rewrite">${escapeHtml(sentence.passive_rewrite)}</div>`;
+              <div class="rewrite acceptable" data-sentence-id="${sentence.id}" data-type="passive_rewrite">${escapeHtml(sentence.passive_rewrite)}</div>`;
+  }
+
+  if (sentence.clarity_rewrite) {
+    html += `<span class="tag clarity">Clarity</span>
+              <div class="rewrite acceptable" data-sentence-id="${sentence.id}" data-type="clarity_rewrite">${escapeHtml(sentence.clarity_rewrite)}</div>`;
   }
 
   card.innerHTML = html;
   return card;
 }
+
+cardsEl.addEventListener('click', (e) => {
+  const target = e.target.closest('.rewrite.acceptable');
+  if (!target) return;
+
+  const sentenceId = parseInt(target.dataset.sentenceId, 10);
+  const type = target.dataset.type;
+  const sentenceData = lastAnalysisData.sentences.find(s => s.id === sentenceId);
+  if (!sentenceData) return;
+
+  const replacementText = sentenceData[type];
+  if (!replacementText) return;
+
+  const text = editor.value;
+  const index = text.indexOf(sentenceData.original_text);
+  if (index === -1) return; // original sentence already replaced/edited away
+
+  editor.value = text.slice(0, index) + replacementText + text.slice(index + sentenceData.original_text.length);
+  updateLiveStats();
+
+  const card = target.closest('.card');
+  card.querySelectorAll('.rewrite.acceptable').forEach(el => {
+    el.classList.remove('acceptable');
+    el.classList.add('stale');
+  });
+  target.classList.remove('stale');
+  target.classList.add('applied');
+});
 
 function escapeHtml(str) {
   const div = document.createElement('div');

@@ -7,6 +7,7 @@
   --ochre: #B8862B;
   --slate: #44607A;
   --line: #E3DFD4;
+  --plum: #6B5A75;
 }
 
 * { box-sizing: border-box; }
@@ -196,6 +197,7 @@ button.ghost {
 .tag.grammar { background: #F6E3DB; color: var(--clay); }
 .tag.formality { background: #F3E6CC; color: var(--ochre); }
 .tag.passive { background: #DCE5EC; color: var(--slate); }
+.tag.clarity { background: #E8E1ED; color: var(--plum); }
 
 .card .rewrite {
   margin-top: 6px;
@@ -207,4 +209,29 @@ button.ghost {
   text-decoration: underline wavy var(--clay);
   text-decoration-thickness: 1.5px;
   text-underline-offset: 2px;
+}
+
+.card .rewrite.acceptable {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 4px 6px;
+  margin: 4px -6px;
+  transition: background 0.15s ease;
+}
+
+.card .rewrite.acceptable:hover {
+  background: #F0EDE3;
+}
+
+.card .rewrite.applied {
+  background: #E8F0E8;
+  color: var(--green);
+  font-style: normal;
+  font-weight: 500;
+}
+
+.card .rewrite.stale {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
 }
