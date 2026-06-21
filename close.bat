@@ -1,0 +1,6 @@
+@echo off
+echo [Shutdown] Stopping FastAPI server...
+taskkill /F /IM "uvicorn.exe" >nul 2>&1
+echo [Shutdown] Stopping Ollama server...
+taskkill /F /IM "ollama.exe" >nul 2>&1
+echo [Shutdown] All services stopped.
