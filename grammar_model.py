@@ -31,9 +31,8 @@ async def correct(sentence: str) -> str:
         "Do not add any commentary, notes, or parenthetical remarks about whether changes were needed. "
         "Example:\n"
         "Original: I am so tired, to be hnest.\n"
-        "Corrected: I am so tired, to be honest.\n\n"
-        "Now correct this sentence the same way. "
-        "Return only the corrected sentence with no explanation, notes, or commentary of any kind:\n\n"
+        "Corrected: I am so tired, to be honest.\n"
+        "Now correct this sentence the same way. Return only the corrected sentence with no explanation, notes, or commentary of any kind:\n\n"
         f"{sentence}"
     )
     corrected_text = await ollama_generate(prompt)
