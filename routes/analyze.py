@@ -78,7 +78,7 @@ async def analyze_text(request: AnalyzeRequest):
 
         sentence_tone_index = data.get("top_tone_index")
         tone_shift = (
-            sentence_tone_index is not None and is_tone_shift(sentence_tone_index, baseline_index)
+            sentence_tone_index is not None and baseline_index is not None and is_tone_shift(sentence_tone_index, baseline_index)
         )
 
         errors_list = [ErrorDetail(**e) for e in data["errors"]]

@@ -18,7 +18,7 @@ async def ollama_generate(prompt: str, max_tokens: int = 150) -> str:
             {"role": "system", "content": SYSTEM_MESSAGE},
             {"role": "user", "content": prompt}
         ],
-        "options": {"temperature": 0.3, "num_predict": max_tokens},
+        "options": {"temperature": 0.2, "num_predict": max_tokens, "num_ctx": 1024, "top_p": 0.1, "top_k": 10, "repeat_penalty": 1.1},
         "stream": False
     }
     try:

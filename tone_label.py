@@ -1,7 +1,7 @@
 from transformers import pipeline
 import torch
 
-DEVICE = 0 if torch.cuda.is_available() else -1
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 classifier = pipeline(
     "zero-shot-classification",
@@ -24,11 +24,13 @@ def classify_tone(text: str) -> dict:
     top_label = result["labels"][0]
     top_score = result["scores"][0]
 
-    if top_score < 0.35:  # starting guess — needs testing against real sentences, same as every other threshold here
+    top_two = [label for label, score in zip(result["labels"], result["scores"]) if score > 0.5]
+    
+    if top_score < 0.5:  # starting guess — needs testing against real sentences, same as every other threshold here
         return {"top_two": [], "top_index": None}
 
     return {
-        "top_two": result["labels"][:2],
+        "top_two": top_two[:2],  # return at most two labels
         "top_index": TONE_LOOP.index(top_label),
     }
 
