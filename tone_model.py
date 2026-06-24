@@ -1,4 +1,4 @@
-from grammar_model import ollama_generate
+from grammar_model import ollama_generate, tag_prompt
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
