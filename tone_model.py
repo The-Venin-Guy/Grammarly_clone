@@ -1,4 +1,4 @@
-from grammar_model import ollama_generate, tag_prompt
+from grammar_model import run_tagged_prompt
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
@@ -16,38 +16,37 @@ def detect_formality(text):
     return probs[0][1].item()
 
 async def rewrite_formality(text):
-    prompt = (
+    instruction = (
         "Rewrite the following sentence in formal English. "
-        "Preserve the exact meaning and all factual details - do not change who did what. "
+        "Preserve the exact meaning and all factual details — do not change who did what. "
         "Make the smallest change necessary to sound formal. "
-        "If the senqtence is already formal or neutral or not overly informal, return it unchanged. "
-        "Return only the rewritten sentence. There must be absolutely no explanation:\n\n"
-        f"{text}"
+        "If the sentence is already formal or neutral, return it unchanged."
     )
-    return (await ollama_generate(prompt)).strip()
+    example = "Original: hey whats up\n<answer>Hello, how are you?</answer>"
+    return await run_tagged_prompt(instruction, example, text)
 
 async def rewrite_active(text):
-    prompt = (
+    instruction = (
         "Rewrite the sentence in active voice. "
         "Keep every pronoun attached to the exact same person it originally referred to — "
-        "do not swap 'my' for 'his', or 'her' for 'their', or any other pronoun substitution. "
-        "Example:\n"
-        "Original: Because of my tiredness, the cake was eaten by him.\n"
-        "Rewritten: He ate the cake because of my tiredness.\n\n"
-        "Now rewrite this sentence the same way. "
-        "Return only the rewritten sentence with no explanation:\n\n"
-        f"{text}"
+        "do not swap 'my' for 'his', or 'her' for 'their', or any other pronoun substitution."
     )
-    return (await ollama_generate(prompt)).strip()
+    example = (
+        "Original: Because of my tiredness, the cake was eaten by him.\n"
+        "<answer>He ate the cake because of my tiredness.</answer>"
+    )
+    return await run_tagged_prompt(instruction, example, text)
 
 async def rewrite_clarity(text):
-    prompt = (
+    instruction = (
         "Simplify the following sentence to make it clearer and easier to read. "
         "Preserve the original meaning and all factual details exactly. "
         "Make the smallest change necessary for clarity. "
-        "Return only the simplified sentence with no explanation:"
-        "Do not rewrite with more synonyms if the original words are already clear and simple."
-        "if the sentence is already clear, return it unchanged.\n\n"
-        f"{text}"
+        "Do not substitute synonyms if the original words are already clear. "
+        "If the sentence is already clear, return it unchanged."
     )
-    return (await ollama_generate(prompt)).strip()
+    example = (
+        "Original: The utilization of complex terminology can impede comprehension.\n"
+        "<answer>Using complex words can make things hard to understand.</answer>"
+    )
+    return await run_tagged_prompt(instruction, example, text)

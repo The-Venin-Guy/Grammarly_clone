@@ -7,6 +7,7 @@ from sentence_tracker import check_sentence, store
 from grammar_service import analyze as analyze_grammar
 from tone_service import analyze as analyze_tone
 from readability import analyze as analyze_readability, get_flesch
+from tone_label import classify_tone, is_tone_shift
 
 router = APIRouter()
 nlp = spacy.load("en_core_web_sm")
@@ -27,6 +28,8 @@ async def process_sentence(sentence: str, flesch_score: float):
         analyze_tone(sentence, flesch_score)
     )
 
+    tone_spectrum = classify_tone(sentence)
+
     data = {
         "original_text": sentence,
         "corrected_text": grammar_result["corrected"],
@@ -37,6 +40,8 @@ async def process_sentence(sentence: str, flesch_score: float):
         "passive_rewrite": tone_result["passive_rewrite"],
         "clarity_rewrite": tone_result["clarity_rewrite"],
         "passive_voice": tone_result["passive_voice"],
+        "top_tones": tone_spectrum["top_two"],
+        "top_tone_index": tone_spectrum["top_index"],
     }
     store(h, data)
     return h, data, True
@@ -54,6 +59,9 @@ async def analyze_text(request: AnalyzeRequest):
         process_sentence(sentence, flesch_score) for sentence in sentences
     ])
 
+    baseline = classify_tone(text)
+    baseline_index = baseline["top_index"]
+
     sentence_results = []
     reanalyzed = 0
     cached_count = 0
@@ -68,12 +76,17 @@ async def analyze_text(request: AnalyzeRequest):
         if data["passive_voice"]:
             passive_count += 1
 
+        sentence_tone_index = data.get("top_tone_index")
+        tone_shift = (
+            sentence_tone_index is not None and is_tone_shift(sentence_tone_index, baseline_index)
+        )
+
         errors_list = [ErrorDetail(**e) for e in data["errors"]]
         data_no_errors = {k: v for k, v in data.items() if k != "errors"}
 
         sentence_results.append(SentenceResult(
             id=idx, hash=h, analyzed=True, modified=modified,
-            errors=errors_list, **data_no_errors
+            errors=errors_list, tone_shift=tone_shift, **data_no_errors
         ))
 
     readability = analyze_readability(text)
@@ -86,5 +99,7 @@ async def analyze_text(request: AnalyzeRequest):
             sentences_reanalyzed=reanalyzed,
             sentences_cached=cached_count,
             passive_voice_count=passive_count,
-        )
+            document_tone=baseline["top_two"]
+        ),
+        
     )

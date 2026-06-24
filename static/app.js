@@ -11,7 +11,7 @@ const sentenceStatsEl = document.getElementById('sentence-stats');
 const formalityToggle = document.getElementById('formality-toggle');
 const highlightLayer = document.getElementById('highlight-layer');
 
-// ---------- State ----------
+// State 
 let lastAnalysisData = null;
 const spellErrors = new Map();
 const grammarErrorsBySentence = new Map(); // sentenceText -> errors array
@@ -21,7 +21,7 @@ let debounceTimer = null;
 let staleTimer = null;
 let grammarCheckTimer = null;
 
-// ---------- Helpers ----------
+//Helpers 
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
@@ -41,7 +41,7 @@ function setsEqual(a, b) {
   return true;
 }
 
-// ---------- Live word/character count ----------
+// Live word/character count
 function updateLiveStats() {
   const text = editor.value;
   const charCount = text.length;
@@ -53,7 +53,7 @@ function updateLiveStats() {
 editor.addEventListener('input', updateLiveStats);
 updateLiveStats();
 
-// ---------- Spellcheck: detection ----------
+//  Spellcheck: detection 
 async function checkWord(word) {
   const cleaned = word.replace(/[^a-zA-Z']/g, '');
   if (!cleaned) return;
@@ -224,6 +224,9 @@ function renderResults(data) {
   if (avg >= 0.7) label = 'Formal';
   else if (avg <= 0.35) label = 'Informal';
   formalityEl.textContent = `${label} (${avg.toFixed(2)})`;
+  if (data.document_tone && data.document_tone.length) {
+    sentencesStatsE1.textContent += ' . Tone: ' + data.document_tone.join(', ');
+  }
 
   const ds = data.document_stats;
   sentenceStatsEl.textContent = `${ds.total_sentences} total, ${ds.passive_voice_count} passive`;
@@ -241,8 +244,13 @@ function buildCard(sentence) {
   if (sentence.has_error && !isDismissed('corrected_text')) card.classList.add('has-grammar');
   if (formalityToggle.checked && sentence.tone_rewrite && !isDismissed('tone_rewrite')) card.classList.add('has-formality');
   if (sentence.passive_voice && !isDismissed('passive_rewrite')) card.classList.add('has-passive');
+  if (sentence.tone_shift && !isDismissed('tone_shift')) card.classList.add('has-tone-shift');
 
   let html = `<div class="original">${escapeHtml(sentence.original_text)}</div>`;
+
+  if (sentence.top_tones && sentence.top_tones.length) {
+    html += `<div class="rewrite" style="font-style:normal;">Tones: ${sentence.top_tones.map(escapeHtml).join(', ')}</div>`;
+  }
 
   function suggestionRow(tag, type, text) {
     if (isDismissed(type)) return '';
@@ -264,6 +272,14 @@ function buildCard(sentence) {
   }
   if (sentence.clarity_rewrite) {
     html += suggestionRow('clarity', 'clarity_rewrite', sentence.clarity_rewrite);
+  }
+
+  if (sentence.tone_shift && !isDismissed('tone_shift')) {
+    html += `<div class="suggestion-row">
+               <span class="tag tone-shift">Tone Shift</span>
+               <button class="dismiss-btn" data-hash="${sentence.hash}" data-type="tone_shift" title="Ignore this note">×</button>
+             </div>
+             <div class="rewrite">This sentence's tone differs notably from the document's overall tone.</div>`;
   }
 
   card.innerHTML = html;

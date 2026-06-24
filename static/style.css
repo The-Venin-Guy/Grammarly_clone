@@ -8,6 +8,7 @@
   --slate: #44607A;
   --line: #E3DFD4;
   --plum: #6B5A75;
+  --teal: #2E7D68;
 }
 
 * { box-sizing: border-box; }
@@ -198,6 +199,7 @@ button.ghost {
 .tag.formality { background: #F3E6CC; color: var(--ochre); }
 .tag.passive { background: #DCE5EC; color: var(--slate); }
 .tag.clarity { background: #E8E1ED; color: var(--plum); }
+.tag.tone-shiftt { background: #DCEEE8; color: var(--teal); }
 
 .card .rewrite {
   margin-top: 6px;

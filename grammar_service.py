@@ -27,15 +27,11 @@ async def analyze(sentence: str) -> dict:
     corrected = None
     has_error = False
 
-    if lt_has_error:
-        corrected = await correct(sentence)
-        has_error = True
-    elif needs_extra_check(sentence):
+    if lt_has_error or needs_extra_check(sentence):
         candidate = await correct(sentence)
         if candidate.strip() != sentence.strip():
             corrected = candidate
             has_error = True
-        # else: Ollama agreed nothing needed fixing — stays has_error: False
 
     return {"original": sentence, "corrected": corrected, "has_error": has_error, "errors": errors}
 

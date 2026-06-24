@@ -22,6 +22,8 @@ class SentenceResult(BaseModel):
     hash: str
     analyzed: bool
     modified: bool
+    top_tones: list[str] | None= None
+    tone_shift: bool= False
 
 class ReadabilityResult(BaseModel):
     flesch_reading_ease: float
@@ -33,6 +35,7 @@ class DocumentStats(BaseModel):
     sentences_reanalyzed: int
     sentences_cached: int
     passive_voice_count: int
+    document_tone: list[str]= []
 
 class AnalyzeResponse(BaseModel):
     sentences: list[SentenceResult]
