@@ -1,0 +1,9 @@
+fastapi==0.138.1
+httpx==0.28.1
+language_tool_python==3.4.0
+pydantic==2.13.4
+spacy==3.8.14
+spellchecker==0.4
+textstat==0.7.13
+torch==2.12.0
+transformers==5.11.0
