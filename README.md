@@ -49,22 +49,21 @@ Frontend (HTML/CSS/Vanilla JS)
    Unchanged sentences → return cached result
    Changed sentences → run full pipeline, concurrently per sentence:
          |
-    _____|_____________________________
-    |                                  |
-    V                                  V
-LanguageTool                    ToneRouter (3 parallel gates,
-Error Detection                  run on ORIGINAL sentence text)
-    |                                  |
-    V                          ____________________
-GrammarRouter                  |         |          |
-(if errors found)           Gate 1    Gate 2     Gate 3
-    |                      Formality  Passive   Clarity
-    V                       (ranker)  (spaCy)   (Flesch<50)
-Ollama phi3.5                   |         |          |
-Grammar Correction          Ollama if   Ollama if  Ollama if
-                             informal   passive    doc Flesch<50
-    |____________________________|_________|__________|
-                         |
+    _____|____________________________________________________________________________________
+    |                                  |                                                     | 
+    V                                  V                                                     V
+LanguageTool                    ToneRouter (3 parallel gates,                          Request Tone Check
+Error Detection                  run on ORIGINAL sentence text)                              |
+    |                                  |                                                     |                                                       
+    V                          ____________________                                          V                                                            
+GrammarRouter                  |         |          |                                   Request Tone rewrite                                              
+(if errors found)           Gate 1    Gate 2     Gate 3                                      |               
+    |                      Formality  Passive   Clarity                                      |                
+    V                       (ranker)  (spaCy)   (Flesch<50)                                  V
+Ollama phi3.5                   |         |          |                                   Re-write into          
+Grammar Correction          Ollama if   Ollama if  Ollama if                             Desired tone with Ollama phi 3.5
+                             informal   passive    doc Flesch<50                             |      
+    |____________________________|_________|__________|______________________________________|
                          V
                 TextStat Readability
                 (document level only)
@@ -95,6 +94,7 @@ Grammar Correction          Ollama if   Ollama if  Ollama if
 | Formality scoring | `s-nlp/roberta-base-formality-ranker` (HuggingFace Transformers, GPU) |
 | Passive voice detection | spaCy `en_core_web_sm` (`nsubjpass` dependency label) |
 | Sentence segmentation | spaCy (single source of truth — no other splitter used anywhere) |
+| Tone/Emotion Checker | `valhalla/distilbart-mnli-12-3` (HuggingFace, CPU)|
 | Grammar error detection | LanguageTool (`language-tool-python`) |
 | Readability metrics | `textstat` (Flesch Reading Ease, Flesch-Kincaid Grade) |
 | Word-level spellcheck | `pyspellchecker` |
@@ -124,7 +124,9 @@ Grammar_Checker/
 │   ├── analyze.py          # POST /analyze
 │   ├── reset.py            # POST /reset
 │   ├── spellcheck.py       # POST /spellcheck
-│   └── grammar_check.py    # POST /grammar-check (fast, LanguageTool-only)
+│   ├── grammar_check.py    # POST /grammar-check (fast, LanguageTool-only)
+|   └── Analyse_tone.py
+|   └── Transform.py
 ├── main.py                 # FastAPI app, lifespan health check, static file mount
 ├── start.bat                # single-command startup script
 └── static/
@@ -292,6 +294,7 @@ All three gates run on the **original** sentence text (not the grammar-corrected
 - **Per-suggestion dismiss** — each suggestion in a card has a small dismiss control. Dismissing it is tracked by a `sentence_hash:suggestion_type` key, so it stays hidden across re-renders (including from the debounce/stale timers) as long as the sentence text doesn't change. Editing the sentence produces a new hash, naturally clearing the dismissal.
 - **Sentence-boundary debounce** — a lightweight regex (`/[^.!?]+[.!?]+/g`) continuously detects newly-completed sentences (ending in `.`, `?`, or `!`). When a new complete sentence appears, a ~1.8s debounce timer starts; if the user keeps typing, it resets. On firing, only completed sentences are sent to `/analyze` — the in-progress fragment is excluded.
 - **Stale-fallback timer** — a separate ~5s inactivity timer always resets on every keystroke, regardless of punctuation. If it fires, the entire current text (including any unpunctuated trailing fragment) is sent anyway — catches sentences the user finished but forgot to punctuate.
+- **Passage tone checker** - a button to check the dominant tones in the passage and then allow you transform to a different tone. 
 
 ---
 
