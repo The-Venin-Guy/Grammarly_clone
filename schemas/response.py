@@ -45,3 +45,10 @@ class SpellCheckResponse(BaseModel):
 
 class GrammarCheckResponse(BaseModel):
     errors: list[ErrorDetail]
+
+class AnalyzeToneResponse(BaseModel):
+    dominant_tones: list[dict]
+    scores: dict[str, float]
+    
+class TransformResponse(BaseModel):
+    transformed_text: str

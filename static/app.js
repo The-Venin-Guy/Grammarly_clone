@@ -10,6 +10,8 @@ const formalityEl = document.getElementById('formality-value');
 const sentenceStatsEl = document.getElementById('sentence-stats');
 const formalityToggle = document.getElementById('formality-toggle');
 const highlightLayer = document.getElementById('highlight-layer');
+const transformBtn = document.getElementById('transform-btn');
+const transformModeSelect = document.getElementById('transform-mode');
 
 // ---------- State ----------
 let lastAnalysisData = null;
@@ -385,4 +387,81 @@ editor.addEventListener('input', () => {
     const fullText = editor.value.trim();
     if (fullText) runAutoAnalysis(fullText);
   }, 5000);
+});
+
+transformBtn.addEventListener('click', async () => {
+  const text = editor.value.trim();
+  if (!text) return;
+
+  const mode = transformModeSelect.value;
+
+  const response = await fetch('/transform', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, mode })
+  });
+
+  if (!response.ok) {
+    console.error('Transform failed:', response.status);
+    return;
+  }
+
+  const data = await response.json();
+
+  editor.focus();
+  editor.setSelectionRange(0, text.length);
+  document.execCommand('insertText', false, data.transformed_text);
+});
+
+const checkToneBtn = document.getElementById('check-tone-btn');
+const toneModalOverlay = document.getElementById('tone-modal-overlay');
+const toneModalClose = document.getElementById('tone-modal-close');
+const toneDominantEl = document.getElementById('tone-dominant');
+const toneScoresEl = document.getElementById('tone-scores');
+
+checkToneBtn.addEventListener('click', async () => {
+  const text = editor.value.trim();
+  if (!text) return;
+
+  const response = await fetch('/analyze-tone', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
+  });
+
+  if (!response.ok) {
+    console.error('Tone analysis failed:', response.status);
+    return;
+  }
+
+  const data = await response.json();
+  renderToneModal(data);
+  toneModalOverlay.classList.remove('hidden');
+});
+
+function renderToneModal(data) {
+  if (data.dominant_tones && data.dominant_tones.length) {
+    toneDominantEl.textContent = "Dominant: " + data.dominant_tones.map(t => t.label).join(", ");
+  } else {
+    toneDominantEl.textContent = "No dominant tone detected";
+  }
+
+  const sorted = Object.entries(data.scores).sort((a, b) => b[1] - a[1]);
+
+  toneScoresEl.innerHTML = sorted.map(([label, score]) => {
+    const pct = Math.round(score * 100);
+    return `<div class="tone-score-row">
+              <span class="tone-score-label">${escapeHtml(label)}</span>
+              <div class="tone-score-track"><div class="tone-score-fill" style="width:${pct}%"></div></div>
+              <span class="tone-score-value">${pct}%</span>
+            </div>`;
+  }).join('');
+}
+
+toneModalClose.addEventListener('click', () => {
+  toneModalOverlay.classList.add('hidden');
+});
+
+toneModalOverlay.addEventListener('click', (e) => {
+  if (e.target === toneModalOverlay) toneModalOverlay.classList.add('hidden');
 });
