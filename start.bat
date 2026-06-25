@@ -1,7 +1,5 @@
 @echo off
-set OLLAMA_NUM_PARALLEL=2
 set OLLAMA_KEEP_ALIVE=30m
-set OLLAMA_FLASH_ATTENTION=1
 
 echo [Startup] Checking port 11434...
 netstat -ano | findstr :11434 >nul 2>&1

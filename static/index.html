@@ -27,6 +27,7 @@
       <div class="editor-controls">
         <button id="analyze-btn">Analyze</button>
         <button id="reset-btn" class="ghost">Reset</button>
+        <button id="check-tone-btn" class="ghost">Check Tone</button>
         <label class="toggle">
           <input type="checkbox" id="formality-toggle" checked>
           <span>Check formality</span>
@@ -53,6 +54,27 @@
       <div class="cards" id="cards"></div>
     </aside>
   </main>
+
+  <div id="tone-modal-overlay" class="modal-overlay hidden">
+  <div class="modal-box">
+    <button id="tone-modal-close" class="modal-close">&times;</button>
+    <h2>Tone Analysis</h2>
+    <div id="tone-dominant" class="tone-dominant">—</div>
+    <div id="tone-scores" class="tone-scores"></div>
+    <div class="modal-divider"></div>
+    <div class="transform-section">
+      <label for="transform-mode">Rewrite as:</label>
+      <select id="transform-mode">
+        <option value="Academic">Academic</option>
+        <option value="Professional">Professional</option>
+        <option value="Concise">Concise</option>
+        <option value="Friendly">Friendly</option>
+        <option value="Persuasive">Persuasive</option>
+      </select>
+      <button id="transform-btn">Transform</button>
+    </div>
+  </div>
+</div>
 
   <script src="app.js"></script>
 </body>
